@@ -144,7 +144,7 @@ Temps total de calcul : 1.21253 sec
 1.21253
 ```
 
-![mandel](img/mandel0.png)
+![mandel](img/mandel0.jpg)
 
 Si j'augmente les dimensions de l'image 800x800 => 2500x2500 on a :
 
@@ -166,7 +166,7 @@ Temps total de calcul : 11.7655 sec
 11.7655
 ```
 
-![mandel](img/mandel0.png)
+![mandel](img/mandel0.jpg)
 
 
 On voit donc que le temps de calcul évolue linéairement en fonction du nombre de pixels à calculer.
@@ -201,4 +201,4 @@ mpirun -np 4 mandel 800 800 -1.48478 0.00006 -1.48440 0.00044 100
 Temps total de calcul : 0.117159 sec
 ```
 
-![mandel high res](img/mandel1.png)
+![mandel high res](img/mandel1.jpg)
