@@ -273,7 +273,9 @@ int main(int argc, char *argv[]) {
   if(rank == MASTER){
     /* Allocation memoire du tableau resultat */  
     pima = ima = (unsigned char *)malloc(w*h*sizeof(unsigned char));
-  }else{
+  }
+
+  else{
     pima = ima = (unsigned char *)malloc(bloc_size*sizeof(unsigned char));
   }
     
@@ -284,23 +286,28 @@ int main(int argc, char *argv[]) {
 
   double ymin_loc = ymin + rank*yinc*h_tmp;
   y = ymin_loc; 
+
+  double debut_proc = my_gettimeofday();
   for (i = 0; i < h_tmp; i++) { 
     x = xmin;
     for (j = 0; j < w; j++) {
-      // printf("%d\n", xy2color( x, y, prof));
-      // printf("(x,y)=(%g;%g)\t (i,j)=(%d,%d)\n", x, y, i, j);
       *pima++ = xy2color( x, y, prof);
       x += xinc;
     }
     y += yinc; 
   }
+  double fin_proc = my_gettimeofday();
+
+  //printf("processeur : %i\n", rank);
+  fprintf( stderr, "Temps total de calcul : %g sec\n", fin_proc - debut_proc);
+
 
   if(rank == MASTER){
-    printf("RECEPTIONS POUR %d PROCESSEURS\n", nb_proc);
+    printf("Recuperation pour %d processeurs\n", nb_proc);
     for(int k = 1; k < nb_proc; k++){
       MPI_Probe(MPI_ANY_SOURCE, 99, MPI_COMM_WORLD, &status);
       int s = status.MPI_SOURCE;
-      printf("SOURCE : %d\n",s);
+      printf("en provenance de : %d\n",s);
       if(s != 0){
         MPI_Recv(ima+w*h_tmp*s, w*h_tmp, MPI_CHAR, s, 99, MPI_COMM_WORLD, &status);
       }

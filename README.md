@@ -232,3 +232,15 @@ Temps total de calcul : 0.413134 sec
 On obtient le graphique suivant :
 
 ![perfomance en fonction du temps](img/mandelgraph.jpg)
+
+On remarque que le temps de calcul est minimal pour 4 processeurs, ce qui correspond au nombre de processeurs rééllement présent sur la machine.
+
+### Temps de calcul par processeurs
+
+On cherche à déterminer le temps de calcul pour chaque processeur. On prend ici un exemple avec 8 processeurs, le proceseur n° 0 étant le maitre (celui qui réceptionne tous les paquets).
+
+On obtient le graphique suivant
+
+![temps de calcul par processus](img/mandelgraph2.jpg)
+
+On remarque que le plus grand temps de calcul est sur le processus numéro 0, c'est à dire le processus master. En effet, on peut s'attendre à ce que ce soit ce processus qui soit le plus utilisé.
