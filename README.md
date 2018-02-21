@@ -173,6 +173,12 @@ On voit donc que le temps de calcul évolue linéairement en fonction du nombre 
 
 ### Effets de la parallélisation
 
+On réalise la représentation de l'image de l'ensemble de Mandelbrot suivant :
+
+![mandel high res](img/mandel1.jpg)
+
+On cherche à déterminer le lien entre le nombre de processeurs et le temps de calcul
+
  - 1 processeur
 
 ```sh
@@ -201,4 +207,28 @@ mpirun -np 4 mandel 800 800 -1.48478 0.00006 -1.48440 0.00044 100
 Temps total de calcul : 0.117159 sec
 ```
 
-![mandel high res](img/mandel1.jpg)
+ - 8 processeurs 
+
+```sh
+mpirun -np 8 mandel 800 800 -1.48478 0.00006 -1.48440 0.00044 100
+Temps total de calcul : 0.165076 sec
+``` 
+
+ - 16 processeurs
+
+```sh
+mpirun -np 16 mandel 800 800 -1.48478 0.00006 -1.48440 0.00044 100
+Temps total de calcul : 0.233506 sec
+``` 
+
+ - 32 processeurs
+
+```sh
+mpirun -np 32 mandel 800 800 -1.48478 0.00006 -1.48440 0.00044 100
+Temps total de calcul : 0.413134 sec
+``` 
+
+
+On obtient le graphique suivant :
+
+![perfomance en fonction du temps](img/mandelgraph.jpg)
