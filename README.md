@@ -43,7 +43,7 @@ mpirun -np [nb_processus] mandel [paramètres]
 ### Calcul séquentiel
 
 
-#### Choix techniques
+### Choix techniques
 
 On représente l'image comme un tableau à 1 dimension de longeur w\*h (avec w et h la largeur et la hauteur en pixels de l'image). Etant donné que l'on stocke chaque valeur de pixel sur 1 octet (type char), on alloue donc une mémoire de w\*h\*sizeof(char).
 
@@ -54,8 +54,6 @@ Enfin, le paramètre profondeur correspond à la profondeur de calcul de la vale
 
 
 ### Calcul parallèle
-
-#### Difficulté à parallèliser
 
 On a dit plus haut qu'il fallait optimiser les étapes dépendant de la résolution et de la profondeur. Pour cette dernière il s'agit de la fonction qui calcule la valeur de l'ensemble de mandelbrot à une position donnée. Cependant, chaque itération de cette fonction dépend de la précédente. On ne peut donc pas la parralèliser.
 
@@ -76,6 +74,50 @@ Paramètres :
 Sortie : Calcul traité par le maître avec positionnement du pointeur au début de son image locale et allocation dynamique de l'image globale.
 
 ```c
+  MPI_Status status;
+  int rank;
+  int nb_proc;
+  MPI_Init(&argc, &argv);
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  MPI_Comm_size(MPI_COMM_WORLD, &nb_proc);
+  
+  printf("Processeur : %d\n", rank);
+
+  int bloc_size = (h/nb_proc)*w;
+  int h_tmp = h/nb_proc;
+  if(rank == MASTER){
+    /* Allocation memoire du tableau resultat */  
+    pima = ima = (unsigned char *)malloc(w*h*sizeof(unsigned char));
+  }else{
+    pima = ima = (unsigned char *)malloc(bloc_size*sizeof(unsigned char));
+  }
+    
+  if( ima == NULL) {
+    fprintf( stderr, "Erreur allocation mémoire du tableau \n");
+    return 0;
+  }
+
+  double ymin_loc = ymin + rank*yinc*h_tmp;
+  y = ymin_loc; 
+  for (i = 0; i < h_tmp; i++) { 
+    x = xmin;
+    for (j = 0; j < w; j++) {
+      *pima++ = xy2color( x, y, prof);
+      x += xinc;
+    }
+    y += yinc; 
+  }
+
+  if(rank == MASTER){
+    printf("RECEPTIONS POUR %d PROCESSEURS\n", nb_proc);
+    for(int k = 1; k < nb_proc; k++){
+      MPI_Probe(MPI_ANY_SOURCE, 99, MPI_COMM_WORLD, &status);
+      int s = status.MPI_SOURCE;
+      printf("SOURCE : %d\n",s);
+      if(s != 0){
+        MPI_Recv(ima+w*h_tmp*s, w*h_tmp, MPI_CHAR, s, 99, MPI_COMM_WORLD, &status);
+      }
+    }
 
 ```
 
@@ -123,4 +165,40 @@ Temps total de calcul : 11.7508 sec
 Temps total de calcul : 11.7655 sec
 11.7655
 ```
+
+![mandel](img/mandel0.ras)
+
+
+On voit donc que le temps de calcul évolue linéairement en fonction du nombre de pixels à calculer.
+
+### Effets de la parallélisation
+
+ - 1 processeur
+
+```sh
+mpirun -np 1 mandel 800 800 -1.48478 0.00006 -1.48440 0.00044 100
+Temps total de calcul : 0.295458 sec
+```
+
+ - 2 processeurs
+
+```sh
+mpirun -np 2  mandel 800 800 -1.48478 0.00006 -1.48440 0.00044 100
+Temps total de calcul : 0.179266 sec
+```
+
+ - 3 processeurs
+
+```sh
+mpirun -np 3  mandel 800 800 -1.48478 0.00006 -1.48440 0.00044 100
+Temps total de calcul : 0.139356 sec
+ ```
+
+ - 4 processeurs
+
+```sh
+mpirun -np 4 mandel 800 800 -1.48478 0.00006 -1.48440 0.00044 100
+Temps total de calcul : 0.117159 sec
+```
+
 ![mandel high res](img/mandel1.ras)
