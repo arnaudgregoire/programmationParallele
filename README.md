@@ -2,7 +2,7 @@
 
 Rapport d'Arnaud Grégoire
 
-## TD/TP1 Ensemble de Mandelbrot
+# TD/TP1 Ensemble de Mandelbrot
 
 ### Ensemble de MandelBrot
 
@@ -40,10 +40,7 @@ Pour éxécuter le code, on réalise la commande :
 mpirun -np [nb_processus] mandel [paramètres]
 ```
 
-### Calcul séquentiel
-
-
-### Choix techniques
+### Calcul séquentiel & choix techniques
 
 On représente l'image comme un tableau à 1 dimension de longeur w\*h (avec w et h la largeur et la hauteur en pixels de l'image). Etant donné que l'on stocke chaque valeur de pixel sur 1 octet (type char), on alloue donc une mémoire de w\*h\*sizeof(char).
 
@@ -241,6 +238,187 @@ On cherche à déterminer le temps de calcul pour chaque processeur. On prend ic
 
 On obtient le graphique suivant
 
-![temps de calcul par processus](img/mandelgraph2.jpg)
+![temps de calcul par processus](img/mandelgraph2.jpg)  
 
 On remarque que le plus grand temps de calcul est sur le processus numéro 0, c'est à dire le processus master. En effet, on peut s'attendre à ce que ce soit ce processus qui soit le plus utilisé.
+
+# TD/TP2 : Convolution
+
+## Question 1
+
+On utilise un tampon intermédiaire pour appliquer un filtre de convolution sur les valeurs de l'image et non pas sur les valeurs des filtres de convolutions réalisés précédemment.s
+
+
+## Question 2
+
+La convolution de chaque pixel de l'image par un filtre est indépendante du produit de convolution des valeurs des pixels voisins. On peut donc parralléliser l'ensemble des calculs des filtres de convolutions.
+
+## Question 3
+
+Pour un noyau de taille 3x3, on a 9 multiplications et 8 additions, on a alors O(9+8) = O(17) = O(1) par pixel => cela veut dire que le nombre d'opérantions étant constant pour tous les pixels de l'image => le nombre d'opérations est constant quelque soit la valeur du pixel => équilibrage de la charge statique
+
+## Question 4
+
+La répartition des données par bloc semble naturel dans ce contexte.
+
+## Question 5
+
+Sachant que l'on exclut les pixels des bords à chaque itération, la dimension N de l'image au bout de i itérations sera de N - 2i.
+
+## Question 6 Tableau de performance
+
+Nombre de threads | Temps(s) | Accélération | Efficacité
+--- | --- | --- | ---
+1   | 6.23 | 1 131 | 1
+2   | 3.23 | 1,131 | 0,957
+4   | 1.23 | 3,131 | 0,911
+7   | 1.23 | 5,131 | 0,809
+14  | 0.23 | 8,131 | 0,613
+25  | 0.23 | 10,131 | 0,401
+28  | 0.23 | 10,131 | 0,37
+50  | 1.23 | 4,131 | 0,092
+100 | 3.23 | 1,131 | 0,017
+
+
+# TD/TP3 : OpenMP
+
+## Question 1 
+
+Le nombre de coeurs disponibles sur la machine est 4. 
+
+```sh
+cpu cores : 4
+```
+
+## Question 2 
+
+On modifie le code pour paralléliser les boucles for imbriqués.
+
+```c
+  #pragma omp parallel for ordered schedule(dynamic) 
+  for (i = 0; i < h; i++) { 
+    x = xmin;
+    #pragma omp parallel for ordered schedule(dynamic)
+    for (j = 0; j < w; j++) {
+      // printf("%d\n", xy2color( x, y, prof));
+      // printf("(x,y)=(%g;%g)\t (i,j)=(%d,%d)\n", x, y, i, j);
+      *pima++ = xy2color( x, y, prof); 
+      x += xinc;
+    }
+    y += yinc; 
+  }
+```
+
+
+On compile le fichier mandel.c avec différentes options :
+```sh
+gcc mandel.c -o mandelOMP -fopenmp -lm
+```
+
+
+On teste si l'effet de la parallélisation sur le temps de calcul : 
+```sh
+export OMP_NUM_THREADS=1
+./mandelOMP
+
+Temps total de calcul : 4.32283 sec
+
+export OMP_NUM_THREADS=4
+./mandelOMP
+
+Temps total de calcul : 0.441621 sec
+```
+
+Le temps d'éxécution est effectivement réduit.
+
+## Question 3
+
+
+On veut changer le type d'équilibrage de charges en statique, on modifie dynamique en statique
+```c
+#pragma omp parallel for private(j, y, x, pima) ordered schedule(dynamic)
+```
+en
+```c
+#pragma omp parallel for private(j, y, x, pima) ordered schedule(static)
+```
+
+Pour faire varier la taille de bloc, on procède comme suit :
+```c
+#pragma omp parallel for private(j, y, x, pima) ordered schedule(dynamic, taille_bloc)
+```
+
+### Comparaison des types d'équilibrages
+
+Avec OMP_NUM_THREADS = 4
+dynamic : Temps total de calcul : 1.12535 sec
+static : Temps total de calcul : 2.14522 sec
+
+L'équilibrage statique diminue presque par 2 le temps de calcul comparé à l'équilibrage dynamique.
+
+
+### Question 4
+
+On modifie légèrement le programme séquentiel de convolution au niveau de la boucle à paralléliser avec des directives openMP :
+
+```c
+  #pragma omp parallel 
+  { 
+    #pragma omp for private(j) schedule(auto)    
+    /* on laisse tomber les bords */
+    for(i=1 ; i<nbl-1 ; i++) {
+      for(j=1 ; j<nbc-1 ; j++){
+        tmp[i*nbc+j] = filtre(
+            choix,
+            tab[(i+1)*nbc+j-1],tab[(i+1)*nbc+j],tab[(i+1)*nbc+j+1],
+            tab[(i  )*nbc+j-1],tab[(i)*nbc+j],tab[(i)*nbc+j+1],
+            tab[(i-1)*nbc+j-1],tab[(i-1)*nbc+j],tab[(i-1)*nbc+j+1]);
+      } /* for j */
+    } /* for i */
+  }
+```
+
+On compile avec la commande :
+```sh
+$ gcc convol.c -o convolOMP -fopenmp -lm
+```
+
+On teste l'efficacité de la parallélisation comme suit :
+```sh
+$ export OMP_NUM_THREADS=1
+$ ./convolOMP Albert-Einstein.ras 0 10
+
+Temps total de calcul : 0.338399 seconde(s)
+
+$ export OMP_NUM_THREADS=4
+$ ./convolOMP Albert-Einstein.ras 0 10
+
+Temps total de calcul : 0.107674 seconde(s)
+```
+
+
+Visiblement, cela fonctionne.
+
+### Comparaison static/dynamic
+
+Avec OMP_NUM_THREADS=4
+
+dynamic : Temps total de calcul : 0.085149 seconde(s) 
+static : Temps total de calcul : 0.095119 seconde(s) 
+
+Le changement d'équilibrage statique/dynamique ne change pas le temps de total de calcul 
+
+
+### Tableau de performance
+
+Nombre de threads | Temps(s) | Accélération | Efficacité
+--- | ---   | ---   | ---
+1   | 2,98  | 1     | 1
+2   | 1,502 | 1,984 | 0,992
+4   | 0,889 | 3,352 | 0,838
+8   | 0,897 | 3,322 | 0,415
+16  | 0,852 | 3,498 | 0,219
+32  | 0,842 | 3,539 | 0,111
+64  | 0,835 | 3,569 | 0,056
+128 | 0,837 | 3,560 | 0,028
+256 | 0,843 | 3,535 | 0,014
